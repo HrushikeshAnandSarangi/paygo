@@ -30,9 +30,15 @@ export const navigations: Navigation[] = [
     name: "Dashboard",
     href: "/",
   },
+  {
+    icon: Layout,
+    name: "Emails",
+    href: "/emails",
+  },
    {
     icon: Layout,
     name: "File extracter",
     href: "/extracted-files",
+
   },
 ];

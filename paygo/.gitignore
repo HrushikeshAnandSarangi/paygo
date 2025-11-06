@@ -15,6 +15,7 @@
 /.nyc_output
 /cypress/screenshots
 /cypress/videos
+/.dev_storage.json
 
 # next.js
 /.next/
@@ -88,4 +89,13 @@ logs
 .cache/
 .eslintcache
 .stylelintcache
+
+
+# email attachments (local storage)
+/public/attachments/
+
+# dev storage
+.dev_storage.json
+
 /src/generated/prisma
+
