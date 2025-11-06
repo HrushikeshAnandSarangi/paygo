@@ -30,4 +30,9 @@ export const navigations: Navigation[] = [
     name: "Dashboard",
     href: "/",
   },
+   {
+    icon: Layout,
+    name: "File extracter",
+    href: "/extracted-files",
+  },
 ];
