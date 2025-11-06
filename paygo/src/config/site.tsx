@@ -35,4 +35,10 @@ export const navigations: Navigation[] = [
     name: "Emails",
     href: "/emails",
   },
+   {
+    icon: Layout,
+    name: "File extracter",
+    href: "/extracted-files",
+
+  },
 ];

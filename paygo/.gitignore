@@ -90,8 +90,12 @@ logs
 .eslintcache
 .stylelintcache
 
+
 # email attachments (local storage)
 /public/attachments/
 
 # dev storage
 .dev_storage.json
+
+/src/generated/prisma
+

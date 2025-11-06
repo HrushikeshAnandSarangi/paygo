@@ -1,0 +1,148 @@
+{
+  "info": {
+    "name": "Invoice Processing API",
+    "description": "API for processing invoice PDFs/images and verifying invoice emails",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "2.0.0"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        },
+        "description": "Check if the API is running and healthy"
+      },
+      "response": []
+    },
+    {
+      "name": "API Root",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/",
+          "host": ["{{base_url}}"],
+          "path": [""]
+        },
+        "description": "Get API information and available endpoints"
+      },
+      "response": []
+    },
+    {
+      "name": "Process Invoice",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "temp.jpg",
+              "description": "Invoice file (PDF, JPG, PNG, TIFF, BMP)"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/process-invoice",
+          "host": ["{{base_url}}"],
+          "path": ["process-invoice"]
+        },
+        "description": "Upload an invoice file and get enhanced JSON data with amounts in INR"
+      },
+      "response": []
+    },
+    {
+      "name": "Process Invoice (Raw + Enhanced)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "temp.jpg",
+              "description": "Invoice file"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/process-invoice-raw",
+          "host": ["{{base_url}}"],
+          "path": ["process-invoice-raw"]
+        },
+        "description": "Get both raw OCR data and enhanced data for comparison"
+      },
+      "response": []
+    },
+    {
+      "name": "Verify Invoice Email",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "subject",
+              "value": "Your Invoice for October Services",
+              "description": "Email subject line"
+            },
+            {
+              "key": "body",
+              "value": "Please find attached the invoice for $500. Payment due in 30 days.",
+              "description": "Email body text"
+            },
+            {
+              "key": "attachment_filename",
+              "value": "invoice_123.pdf",
+              "description": "Optional attachment filename"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/verify-invoice-email?subject=Your Invoice for October Services&body=Please find attached the invoice for $500&attachment_filename=invoice_123.pdf",
+          "host": ["{{base_url}}"],
+          "path": ["verify-invoice-email"],
+          "query": [
+            {
+              "key": "subject",
+              "value": "Your Invoice for October Services"
+            },
+            {
+              "key": "body",
+              "value": "Please find attached the invoice for $500"
+            },
+            {
+              "key": "attachment_filename",
+              "value": "invoice_123.pdf"
+            }
+          ]
+        },
+        "description": "Verify if an email contains invoice-based data using AI classification"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    }
+  ]
+}

@@ -15,256 +15,175 @@ import {
   CalendarDays,
   DollarSign,
 } from "lucide-react"
-import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts"
-import toast from "react-hot-toast"
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, LineChart, Line } from "recharts"
 
-const processingData = [
-  { date: "Mon", processed: 120, flagged: 8 },
-  { date: "Tue", processed: 145, flagged: 12 },
-  { date: "Wed", processed: 138, flagged: 6 },
-  { date: "Thu", processed: 165, flagged: 14 },
-  { date: "Fri", processed: 182, flagged: 11 },
-  { date: "Sat", processed: 95, flagged: 5 },
+// Sample invoice data based on your JSON structure
+const sampleInvoices = [
+  {
+    id: "INV-001",
+    invoice_number: { value: "F1000876/23", confidence: 0.966 },
+    vendor_name: { value: "Tech Solutions Corp", confidence: 0.892 },
+    invoice_date: { value: "2023-08-14", confidence: 0.966 },
+    total_amount: { value: 702.0, confidence: 0.95 },
+    currency: { value: "USD", confidence: 0.8 },
+    purchase_order: { value: "X001525", confidence: 0.535 },
+    due_date: { value: "2023-09-14", confidence: 0.88 },
+    gst_number: { value: "22AAAAA0000A1Z5", confidence: 0.75 },
+    tax_amount: { value: 117.0, confidence: 0.957 },
+    status: "completed"
+  },
+  {
+    id: "INV-002",
+    invoice_number: { value: "INV-2024-1045", confidence: 0.95 },
+    vendor_name: { value: "Global Supply Inc", confidence: 0.391 },
+    invoice_date: { value: "2023-08-15", confidence: 0.97 },
+    total_amount: { value: 1250.0, confidence: 0.92 },
+    currency: { value: "USD", confidence: 0.85 },
+    purchase_order: { value: "X001526", confidence: 0.445 },
+    due_date: { value: "nil", confidence: 0.0 },
+    gst_number: { value: "nil", confidence: 0.0 },
+    tax_amount: { value: 208.33, confidence: 0.88 },
+    status: "flagged"
+  },
+  {
+    id: "INV-003",
+    invoice_number: { value: "TS-5432", confidence: 0.98 },
+    vendor_name: { value: "Office Supplies Ltd", confidence: 0.96 },
+    invoice_date: { value: "2023-08-16", confidence: 0.99 },
+    total_amount: { value: 450.0, confidence: 0.97 },
+    currency: { value: "USD", confidence: 0.9 },
+    purchase_order: { value: "X001527", confidence: 0.82 },
+    due_date: { value: "2023-09-16", confidence: 0.95 },
+    gst_number: { value: "27BBBBB1111B1Z5", confidence: 0.89 },
+    tax_amount: { value: 75.0, confidence: 0.96 },
+    status: "completed"
+  },
+  {
+    id: "INV-004",
+    invoice_number: { value: "CS-2024-8901", confidence: 0.88 },
+    vendor_name: { value: "Cloud Services", confidence: 0.425 },
+    invoice_date: { value: "2023-08-17", confidence: 0.92 },
+    total_amount: { value: 2100.0, confidence: 0.94 },
+    currency: { value: "USD", confidence: 0.87 },
+    purchase_order: { value: "nil", confidence: 0.0 },
+    due_date: { value: "2023-09-17", confidence: 0.91 },
+    gst_number: { value: "nil", confidence: 0.0 },
+    tax_amount: { value: 350.0, confidence: 0.93 },
+    status: "flagged"
+  },
+  {
+    id: "INV-005",
+    invoice_number: { value: "AC-789", confidence: 0.99 },
+    vendor_name: { value: "Acme Corporation", confidence: 0.97 },
+    invoice_date: { value: "2023-08-18", confidence: 0.98 },
+    total_amount: { value: 890.0, confidence: 0.96 },
+    currency: { value: "USD", confidence: 0.92 },
+    purchase_order: { value: "X001528", confidence: 0.78 },
+    due_date: { value: "2023-09-18", confidence: 0.94 },
+    gst_number: { value: "29CCCCC2222C1Z5", confidence: 0.91 },
+    tax_amount: { value: 148.33, confidence: 0.95 },
+    status: "completed"
+  },
+  {
+    id: "INV-006",
+    invoice_number: { value: "GS-456", confidence: 0.72 },
+    vendor_name: { value: "COMPANY", confidence: 0.358 },
+    invoice_date: { value: "2023-08-19", confidence: 0.85 },
+    total_amount: { value: 1580.0, confidence: 0.79 },
+    currency: { value: "USD", confidence: 0.75 },
+    purchase_order: { value: "X001529", confidence: 0.512 },
+    due_date: { value: "nil", confidence: 0.0 },
+    gst_number: { value: "nil", confidence: 0.0 },
+    tax_amount: { value: 263.33, confidence: 0.82 },
+    status: "flagged"
+  },
 ]
 
-// TypeScript interfaces for invoice extraction
-interface ExtractedField {
-  name: string
-  value: string
-  confidence: number
-}
-
-interface Invoice {
-  id: string
-  vendorName: string
-  invoiceNumber: string
-  amount: number
-  date: string
-  dueDate: string
-  status: "completed" | "flagged" | "processing"
-  confidenceScore: number
-  extractedFields: ExtractedField[]
-  currency: string
-}
-
-interface ProcessingMetric {
-  label: string
-  value: number
-  unit: string
-  change: number
-  trend: "up" | "down"
-}
-
-interface UpcomingPayment {
-  id: string
-  vendorName: string
-  amount: number
-  dueDate: string
-  daysUntilDue: number
-  invoiceNumber: string
-  currency: string
-  status: "on-time" | "upcoming" | "overdue"
-}
+const processingTrendData = [
+  { date: "Mon", processed: 45, flagged: 3 },
+  { date: "Tue", processed: 52, flagged: 5 },
+  { date: "Wed", processed: 48, flagged: 2 },
+  { date: "Thu", processed: 61, flagged: 6 },
+  { date: "Fri", processed: 58, flagged: 4 },
+  { date: "Sat", processed: 35, flagged: 2 },
+  { date: "Sun", processed: 28, flagged: 1 },
+]
 
 export default function InvoiceDashboard() {
-  const [balanceVisible, setBalanceVisible] = useState(true)
-  const [activeTab, setActiveTab] = useState<"all" | "flagged">("all")
+  const [invoices, setInvoices] = useState(sampleInvoices)
+  const [activeTab, setActiveTab] = useState("all")
   const [isLoading, setIsLoading] = useState(false)
 
-  const [totalProcessed, setTotalProcessed] = useState(1245)
-  const [totalFlagged, setTotalFlagged] = useState(87)
-  const [avgConfidence, setAvgConfidence] = useState(94.2)
-  const [processingTime, setProcessingTime] = useState(2.3)
+  // Calculate metrics
+  const totalProcessed = invoices.length
+  const flaggedInvoices = invoices.filter(inv => inv.status === "flagged")
+  const totalFlagged = flaggedInvoices.length
+  
+  const calculateAvgConfidence = () => {
+    const fields = ['invoice_number', 'vendor_name', 'invoice_date', 'total_amount', 'tax_amount'] as const
+    type FieldKey = typeof fields[number]
+    
+    let totalConfidence = 0
+    let count = 0
+    
+    invoices.forEach(inv => {
+      fields.forEach(field => {
+        const value = inv[field as keyof typeof inv]
+        if (typeof value === 'object' && value !== null && 'confidence' in value && value.confidence > 0) {
+          totalConfidence += value.confidence * 100
+          count++
+        }
+      })
+    })
+    
+    return count > 0 ? (totalConfidence / count).toFixed(1) : 0
+  }
 
-  const [processedInvoices, setProcessedInvoices] = useState<Invoice[]>([
-    {
-      id: "INV-001",
-      vendorName: "Acme Corp",
-      invoiceNumber: "2024-001",
-      amount: 5230.5,
-      date: "2024-01-15",
-      dueDate: "2024-02-15",
-      status: "completed",
-      confidenceScore: 98,
-      currency: "USD",
-      extractedFields: [
-        { name: "Invoice ID", value: "2024-001", confidence: 99 },
-        { name: "Vendor", value: "Acme Corp", confidence: 98 },
-        { name: "Amount", value: "$5230.50", confidence: 97 },
-        { name: "Date", value: "2024-01-15", confidence: 99 },
-      ],
-    },
-    {
-      id: "INV-002",
-      vendorName: "Global Supply Inc",
-      invoiceNumber: "GS-2024-1045",
-      amount: 12450.0,
-      date: "2024-01-14",
-      dueDate: "2024-02-14",
-      status: "flagged",
-      confidenceScore: 76,
-      currency: "USD",
-      extractedFields: [
-        { name: "Invoice ID", value: "GS-2024-1045", confidence: 82 },
-        { name: "Vendor", value: "Global Supply Inc", confidence: 78 },
-        { name: "Amount", value: "$12450.00", confidence: 71 },
-        { name: "Date", value: "2024-01-14", confidence: 85 },
-      ],
-    },
-    {
-      id: "INV-003",
-      vendorName: "Tech Solutions Ltd",
-      invoiceNumber: "TS-INV-5432",
-      amount: 8750.25,
-      date: "2024-01-13",
-      dueDate: "2024-02-13",
-      status: "completed",
-      confidenceScore: 96,
-      currency: "USD",
-      extractedFields: [
-        { name: "Invoice ID", value: "TS-INV-5432", confidence: 98 },
-        { name: "Vendor", value: "Tech Solutions Ltd", confidence: 96 },
-        { name: "Amount", value: "$8750.25", confidence: 95 },
-        { name: "Date", value: "2024-01-13", confidence: 97 },
-      ],
-    },
-    {
-      id: "INV-004",
-      vendorName: "Office Supplies Co",
-      invoiceNumber: "OS-024567",
-      amount: 1245.0,
-      date: "2024-01-12",
-      dueDate: "2024-02-12",
-      status: "flagged",
-      confidenceScore: 68,
-      currency: "USD",
-      extractedFields: [
-        { name: "Invoice ID", value: "OS-024567", confidence: 72 },
-        { name: "Vendor", value: "Office Supplies Co", confidence: 65 },
-        { name: "Amount", value: "$1245.00", confidence: 64 },
-        { name: "Date", value: "2024-01-12", confidence: 75 },
-      ],
-    },
-    {
-      id: "INV-005",
-      vendorName: "Cloud Services Ltd",
-      invoiceNumber: "CS-2024-8901",
-      amount: 18950.0,
-      date: "2024-01-11",
-      dueDate: "2024-02-11",
-      status: "completed",
-      confidenceScore: 99,
-      currency: "USD",
-      extractedFields: [
-        { name: "Invoice ID", value: "CS-2024-8901", confidence: 99 },
-        { name: "Vendor", value: "Cloud Services Ltd", confidence: 99 },
-        { name: "Amount", value: "$18950.00", confidence: 98 },
-        { name: "Date", value: "2024-01-11", confidence: 99 },
-      ],
-    },
-  ])
+  const avgConfidence = calculateAvgConfidence()
 
-  const [upcomingPayments, setUpcomingPayments] = useState<UpcomingPayment[]>([
-    {
-      id: "PAY-001",
-      vendorName: "Acme Corp",
-      amount: 5230.5,
-      dueDate: "2024-02-15",
-      daysUntilDue: 11,
-      invoiceNumber: "2024-001",
-      currency: "USD",
-      status: "upcoming",
-    },
-    {
-      id: "PAY-002",
-      vendorName: "Global Supply Inc",
-      amount: 12450.0,
-      dueDate: "2024-02-14",
-      daysUntilDue: 10,
-      invoiceNumber: "GS-2024-1045",
-      currency: "USD",
-      status: "upcoming",
-    },
-    {
-      id: "PAY-003",
-      vendorName: "Tech Solutions Ltd",
-      amount: 8750.25,
-      dueDate: "2024-02-13",
-      daysUntilDue: 9,
-      invoiceNumber: "TS-INV-5432",
-      currency: "USD",
-      status: "upcoming",
-    },
-    {
-      id: "PAY-004",
-      vendorName: "Cloud Services Ltd",
-      amount: 18950.0,
-      dueDate: "2024-02-11",
-      daysUntilDue: 7,
-      invoiceNumber: "CS-2024-8901",
-      currency: "USD",
-      status: "upcoming",
-    },
-    {
-      id: "PAY-005",
-      vendorName: "Office Supplies Co",
-      amount: 1245.0,
-      dueDate: "2024-02-12",
-      daysUntilDue: 8,
-      invoiceNumber: "OS-024567",
-      currency: "USD",
-      status: "upcoming",
-    },
-  ])
+  const totalAmount = invoices.reduce((sum, inv) => sum + inv.total_amount.value, 0)
+  const totalTax = invoices.reduce((sum, inv) => sum + inv.tax_amount.value, 0)
 
-  const filteredInvoices =
-    activeTab === "flagged" ? processedInvoices.filter((inv) => inv.status === "flagged") : processedInvoices
+  const filteredInvoices = activeTab === "flagged" ? flaggedInvoices : invoices
 
   const handleRefresh = useCallback(async () => {
     setIsLoading(true)
     try {
-      // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 1000))
-      toast.success("Invoice data refreshed successfully")
+      // In real app, fetch new data here
     } catch (error) {
-      toast.error("Failed to refresh invoice data")
+      console.error("Failed to refresh")
     } finally {
       setIsLoading(false)
     }
   }, [])
 
   const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 90) return "text-green-600"
-    if (confidence >= 75) return "text-yellow-600"
+    if (confidence >= 0.9) return "text-green-600"
+    if (confidence >= 0.75) return "text-yellow-600"
     return "text-red-600"
   }
 
   const getConfidenceBgColor = (confidence: number) => {
-    if (confidence >= 90) return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-    if (confidence >= 75) return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+    if (confidence >= 0.9) return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
+    if (confidence >= 0.75) return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
     return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
   }
 
-  const getStatusColor = (status: string) => {
-    if (status === "overdue") return "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-    if (status === "on-time") return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-    return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
-  }
-
-  const getStatusIcon = (status: string) => {
-    if (status === "overdue") return <AlertCircle className="h-3 w-3" />
-    if (status === "on-time") return <CheckCircle className="h-3 w-3" />
-    return <CalendarDays className="h-3 w-3" />
-  }
-
-  const totalUpcomingAmount = upcomingPayments.reduce((sum, payment) => sum + payment.amount, 0)
+  // Amount distribution over time
+  const amountTrendData = invoices.map((inv, idx) => ({
+    invoice: inv.invoice_number.value.substring(0, 10),
+    amount: inv.total_amount.value,
+    tax: inv.tax_amount.value,
+  })).slice(0, 6)
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6 md:p-8">
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Invoice Dashboard</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">AI-powered invoice data extraction and processing</p>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Invoice Processing Dashboard</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">AI-powered invoice data extraction with confidence scoring</p>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -275,385 +194,345 @@ export default function InvoiceDashboard() {
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
             Refresh
           </button>
-          <button
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 h-9 px-3 text-gray-900 dark:text-white"
-            disabled={isLoading}
-          >
+          <button className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 h-9 px-3 text-gray-900 dark:text-white">
             <Download className="h-4 w-4 mr-2" />
             Export
           </button>
-          <button
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 h-9 px-3 text-gray-900 dark:text-white"
-            disabled={isLoading}
-          >
+          <button className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 h-9 px-3 text-gray-900 dark:text-white">
             <Settings className="h-4 w-4" />
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-        {/* Total Processed */}
-        <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 text-card-foreground shadow-sm">
-          <div className="flex flex-row items-center justify-between space-y-0 p-6 pb-2">
-            <h3 className="tracking-tight text-sm font-medium text-gray-900 dark:text-white">Total Processed</h3>
-            <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-          </div>
-          <div className="p-6 pt-0">
-            <div className="text-2xl font-bold text-gray-900 dark:text-white">{totalProcessed.toLocaleString()}</div>
-            <div className="flex items-center text-xs text-gray-600 dark:text-gray-400 mt-2">
-              <TrendingUp className="h-3 w-3 mr-1 text-green-500" />
-              +12.5% this week
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+        {/* Total Invoices */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 p-6 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full -mr-16 -mt-16"></div>
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white opacity-5 rounded-full -ml-12 -mb-12"></div>
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-blue-100">Total Invoices</h3>
+              <div className="p-2 bg-white bg-opacity-20 rounded-lg backdrop-blur-sm">
+                <FileText className="h-5 w-5 text-white" />
+              </div>
+            </div>
+            <div className="text-4xl font-bold text-white mb-2">{totalProcessed}</div>
+            <div className="flex items-center text-xs text-blue-100">
+              <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
+              Processed successfully
             </div>
           </div>
         </div>
 
         {/* Flagged for Review */}
-        <div className="rounded-lg border border-yellow-200 dark:border-yellow-800 bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-950 dark:to-yellow-900 text-card-foreground shadow-sm">
-          <div className="flex flex-row items-center justify-between space-y-0 p-6 pb-2">
-            <h3 className="tracking-tight text-sm font-medium text-gray-900 dark:text-white">Flagged Items</h3>
-            <Flag className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-          </div>
-          <div className="p-6 pt-0">
-            <div className="text-2xl font-bold text-gray-900 dark:text-white">{totalFlagged}</div>
-            <div className="flex items-center text-xs text-gray-600 dark:text-gray-400 mt-2">
-              <AlertCircle className="h-3 w-3 mr-1 text-yellow-600" />
-              Need human review
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500 via-orange-600 to-orange-700 p-6 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full -mr-16 -mt-16"></div>
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white opacity-5 rounded-full -ml-12 -mb-12"></div>
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-orange-100">Flagged for Review</h3>
+              <div className="p-2 bg-white bg-opacity-20 rounded-lg backdrop-blur-sm">
+                <Flag className="h-5 w-5 text-white" />
+              </div>
+            </div>
+            <div className="text-4xl font-bold text-white mb-2">{totalFlagged}</div>
+            <div className="flex items-center text-xs text-orange-100">
+              <AlertCircle className="h-3.5 w-3.5 mr-1.5" />
+              Low confidence fields
             </div>
           </div>
         </div>
 
-        {/* Avg Confidence Score */}
-        <div className="rounded-lg border border-green-200 dark:border-green-800 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 text-card-foreground shadow-sm">
-          <div className="flex flex-row items-center justify-between space-y-0 p-6 pb-2">
-            <h3 className="tracking-tight text-sm font-medium text-gray-900 dark:text-white">Avg Confidence</h3>
-            <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-          </div>
-          <div className="p-6 pt-0">
-            <div className="text-2xl font-bold text-gray-900 dark:text-white">{avgConfidence.toFixed(1)}%</div>
-            <div className="flex items-center text-xs text-gray-600 dark:text-gray-400 mt-2">
-              <TrendingUp className="h-3 w-3 mr-1 text-green-500" />
-              +2.3% vs last week
+        {/* Avg Confidence */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-green-500 via-green-600 to-green-700 p-6 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full -mr-16 -mt-16"></div>
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white opacity-5 rounded-full -ml-12 -mb-12"></div>
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-green-100">Avg Confidence</h3>
+              <div className="p-2 bg-white bg-opacity-20 rounded-lg backdrop-blur-sm">
+                <CheckCircle className="h-5 w-5 text-white" />
+              </div>
+            </div>
+            <div className="text-4xl font-bold text-white mb-2">{avgConfidence}%</div>
+            <div className="flex items-center text-xs text-green-100">
+              <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
+              Extraction accuracy
             </div>
           </div>
         </div>
 
-        {/* Avg Processing Time */}
-        <div className="rounded-lg border border-purple-200 dark:border-purple-800 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 text-card-foreground shadow-sm">
-          <div className="flex flex-row items-center justify-between space-y-0 p-6 pb-2">
-            <h3 className="tracking-tight text-sm font-medium text-gray-900 dark:text-white">Avg Processing</h3>
-            <Clock className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-          </div>
-          <div className="p-6 pt-0">
-            <div className="text-2xl font-bold text-gray-900 dark:text-white">{processingTime}s</div>
-            <div className="flex items-center text-xs text-gray-600 dark:text-gray-400 mt-2">
-              <TrendingDown className="h-3 w-3 mr-1 text-green-500" />
-              -0.4s improvement
+        {/* Total Amount */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-500 via-purple-600 to-purple-700 p-6 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full -mr-16 -mt-16"></div>
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white opacity-5 rounded-full -ml-12 -mb-12"></div>
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-purple-100">Total Amount</h3>
+              <div className="p-2 bg-white bg-opacity-20 rounded-lg backdrop-blur-sm">
+                <DollarSign className="h-5 w-5 text-white" />
+              </div>
+            </div>
+            <div className="text-3xl font-bold text-white mb-2">
+              ${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <div className="flex items-center text-xs text-purple-100">
+              <Clock className="h-3.5 w-3.5 mr-1.5" />
+              Total invoice value
             </div>
           </div>
         </div>
 
-        {/* Upcoming Payments */}
-        <div className="rounded-lg border border-indigo-200 dark:border-indigo-800 bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-950 dark:to-indigo-900 text-card-foreground shadow-sm">
-          <div className="flex flex-row items-center justify-between space-y-0 p-6 pb-2">
-            <h3 className="tracking-tight text-sm font-medium text-gray-900 dark:text-white">Upcoming Payments</h3>
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-              <CalendarDays className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+        {/* Total Tax */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-indigo-700 p-6 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-5 rounded-full -mr-16 -mt-16"></div>
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white opacity-5 rounded-full -ml-12 -mb-12"></div>
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-indigo-100">Total Tax</h3>
+              <div className="p-2 bg-white bg-opacity-20 rounded-lg backdrop-blur-sm">
+                <DollarSign className="h-5 w-5 text-white" />
+              </div>
             </div>
-          </div>
-          <div className="p-6 pt-0">
-            <div className="text-2xl font-bold text-gray-900 dark:text-white">
-              ${totalUpcomingAmount.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <div className="text-3xl font-bold text-white mb-2">
+              ${totalTax.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <div className="flex items-center text-xs text-gray-600 dark:text-gray-400 mt-2">
-              <Clock className="h-3 w-3 mr-1" />
-              {upcomingPayments.length} payments due in next 30 days
+            <div className="flex items-center text-xs text-indigo-100">
+              <TrendingUp className="h-3.5 w-3.5 mr-1.5" />
+              Tax component
             </div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Processing Trend Chart */}
-        <div className="lg:col-span-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-card-foreground shadow-sm">
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 gap-6 mb-8">
+        {/* Processing Trend - Full Width */}
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-card-foreground shadow-sm">
           <div className="flex flex-col space-y-1.5 p-6 pb-4">
             <h3 className="text-2xl font-semibold leading-none tracking-tight text-gray-900 dark:text-white">
               Weekly Processing Trend
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Processed invoices and flagged items</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Invoice processing activity by day</p>
           </div>
           <div className="px-6 pb-6">
-            {isLoading ? (
-              <div className="h-[300px] flex items-center justify-center">
-                <div className="text-gray-600 dark:text-gray-400 animate-pulse">Loading chart...</div>
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={processingData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-gray-300 dark:stroke-gray-600" />
-                  <XAxis dataKey="date" className="text-gray-600 dark:text-gray-400" />
-                  <YAxis className="text-gray-600 dark:text-gray-400" />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "white",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "8px",
-                    }}
-                    labelStyle={{ color: "#374151" }}
-                  />
-                  <Bar dataKey="processed" stackId="a" fill="#3b82f6" name="Processed" />
-                  <Bar dataKey="flagged" stackId="a" fill="#f59e0b" name="Flagged" />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </div>
-
-        {/* Quick Stats */}
-        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-card-foreground shadow-sm">
-          <div className="flex flex-col space-y-1.5 p-6 pb-4">
-            <h3 className="text-2xl font-semibold leading-none tracking-tight text-gray-900 dark:text-white">
-              Processing Status
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Today's summary</p>
-          </div>
-          <div className="px-6 pb-6 space-y-6">
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-gray-900 dark:text-white">Success Rate</span>
-                <span className="text-sm font-bold text-green-600">95%</span>
-              </div>
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div className="bg-green-600 h-2 rounded-full" style={{ width: "95%" }} />
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-gray-900 dark:text-white">Average Confidence</span>
-                <span className="text-sm font-bold text-blue-600">{avgConfidence}%</span>
-              </div>
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${avgConfidence}%` }} />
-              </div>
-            </div>
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-gray-900 dark:text-white">Review Needed</span>
-                <span className="text-sm font-bold text-yellow-600">7%</span>
-              </div>
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div className="bg-yellow-600 h-2 rounded-full" style={{ width: "7%" }} />
-              </div>
-            </div>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={processingTrendData}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-gray-300 dark:stroke-gray-600" />
+                <XAxis dataKey="date" className="text-gray-600 dark:text-gray-400" />
+                <YAxis className="text-gray-600 dark:text-gray-400" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "white",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px",
+                  }}
+                />
+                <Bar dataKey="processed" stackId="a" fill="#3b82f6" name="Processed" />
+                <Bar dataKey="flagged" stackId="a" fill="#f59e0b" name="Flagged" />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Processed Invoices */}
-        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-card-foreground shadow-sm">
-          <div className="flex flex-col space-y-1.5 p-6 pb-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-2xl font-semibold leading-none tracking-tight text-gray-900 dark:text-white">
-                  Processed Invoices
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Extracted data and confidence scores</p>
-              </div>
-              <div className="inline-flex h-10 items-center justify-center rounded-md bg-gray-100 dark:bg-gray-700 p-1 text-gray-500 dark:text-gray-400">
-                <button
-                  onClick={() => setActiveTab("all")}
-                  className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
-                    activeTab === "all"
-                      ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm"
-                      : "text-gray-600 dark:text-gray-400"
-                  }`}
-                >
-                  All ({processedInvoices.length})
-                </button>
-                <button
-                  onClick={() => setActiveTab("flagged")}
-                  className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
-                    activeTab === "flagged"
-                      ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm"
-                      : "text-gray-600 dark:text-gray-400"
-                  }`}
-                >
-                  Flagged ({processedInvoices.filter((i) => i.status === "flagged").length})
-                </button>
-              </div>
+      {/* Amount Trend Chart */}
+      <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-card-foreground shadow-sm mb-8">
+        <div className="flex flex-col space-y-1.5 p-6 pb-4">
+          <h3 className="text-2xl font-semibold leading-none tracking-tight text-gray-900 dark:text-white">
+            Invoice Amount Trend
+          </h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Total amount and tax breakdown by invoice</p>
+        </div>
+        <div className="px-6 pb-6">
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={amountTrendData}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-gray-300 dark:stroke-gray-600" />
+              <XAxis dataKey="invoice" className="text-gray-600 dark:text-gray-400" />
+              <YAxis className="text-gray-600 dark:text-gray-400" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "white",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "8px",
+                }}
+              />
+              <Line type="monotone" dataKey="amount" stroke="#3b82f6" strokeWidth={2} name="Total Amount" />
+              <Line type="monotone" dataKey="tax" stroke="#10b981" strokeWidth={2} name="Tax Amount" />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Invoice Table */}
+      <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-card-foreground shadow-sm mb-8">
+        <div className="flex flex-col space-y-1.5 p-6 pb-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-2xl font-semibold leading-none tracking-tight text-gray-900 dark:text-white">
+                Processed Invoices
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Extracted invoice data with confidence scores</p>
+            </div>
+            <div className="inline-flex h-10 items-center justify-center rounded-md bg-gray-100 dark:bg-gray-700 p-1 text-gray-500 dark:text-gray-400">
+              <button
+                onClick={() => setActiveTab("all")}
+                className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+                  activeTab === "all"
+                    ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm"
+                    : "text-gray-600 dark:text-gray-400"
+                }`}
+              >
+                All ({invoices.length})
+              </button>
+              <button
+                onClick={() => setActiveTab("flagged")}
+                className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+                  activeTab === "flagged"
+                    ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm"
+                    : "text-gray-600 dark:text-gray-400"
+                }`}
+              >
+                Flagged ({totalFlagged})
+              </button>
             </div>
           </div>
-          <div className="px-6 pb-6">
-            {isLoading ? (
-              <div className="space-y-4">
-                {[...Array(5)].map((_, index) => (
-                  <div key={index} className="h-24 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-3">
+        </div>
+        <div className="px-6 pb-6">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-gray-700">
+                  <th className="text-left p-3 text-sm font-semibold text-gray-900 dark:text-white">Invoice #</th>
+                  <th className="text-left p-3 text-sm font-semibold text-gray-900 dark:text-white">Vendor</th>
+                  <th className="text-left p-3 text-sm font-semibold text-gray-900 dark:text-white">Date</th>
+                  <th className="text-right p-3 text-sm font-semibold text-gray-900 dark:text-white">Amount</th>
+                  <th className="text-right p-3 text-sm font-semibold text-gray-900 dark:text-white">Tax</th>
+                  <th className="text-left p-3 text-sm font-semibold text-gray-900 dark:text-white">PO Number</th>
+                  <th className="text-center p-3 text-sm font-semibold text-gray-900 dark:text-white">Status</th>
+                </tr>
+              </thead>
+              <tbody>
                 {filteredInvoices.map((invoice) => (
-                  <div
-                    key={invoice.id}
-                    className="flex items-center justify-between p-4 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full bg-blue-100 dark:bg-blue-900">
-                          <span className="flex h-full w-full items-center justify-center text-blue-600 dark:text-blue-300 font-medium text-sm">
-                            {invoice.vendorName.slice(0, 2).toUpperCase()}
+                  <tr key={invoice.id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750">
+                    <td className="p-3">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">
+                          {invoice.invoice_number.value}
+                        </span>
+                        <span className={`text-xs ${getConfidenceColor(invoice.invoice_number.confidence)}`}>
+                          {(invoice.invoice_number.confidence * 100).toFixed(0)}% confidence
+                        </span>
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-medium text-gray-900 dark:text-white">
+                          {invoice.vendor_name.value}
+                        </span>
+                        <span className={`text-xs ${getConfidenceColor(invoice.vendor_name.confidence)}`}>
+                          {(invoice.vendor_name.confidence * 100).toFixed(0)}% confidence
+                        </span>
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <div className="flex flex-col">
+                        <span className="text-sm text-gray-900 dark:text-white">
+                          {invoice.invoice_date.value !== "nil" ? new Date(invoice.invoice_date.value).toLocaleDateString() : "N/A"}
+                        </span>
+                        <span className={`text-xs ${getConfidenceColor(invoice.invoice_date.confidence)}`}>
+                          {(invoice.invoice_date.confidence * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                    </td>
+                    <td className="p-3 text-right">
+                      <div className="flex flex-col items-end">
+                        <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                          ${invoice.total_amount.value.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </span>
+                        <span className={`text-xs ${getConfidenceColor(invoice.total_amount.confidence)}`}>
+                          {(invoice.total_amount.confidence * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                    </td>
+                    <td className="p-3 text-right">
+                      <div className="flex flex-col items-end">
+                        <span className="text-sm text-gray-900 dark:text-white">
+                          ${invoice.tax_amount.value.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </span>
+                        <span className={`text-xs ${getConfidenceColor(invoice.tax_amount.confidence)}`}>
+                          {(invoice.tax_amount.confidence * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <div className="flex flex-col">
+                        <span className="text-sm text-gray-900 dark:text-white">
+                          {invoice.purchase_order.value !== "nil" ? invoice.purchase_order.value : "N/A"}
+                        </span>
+                        {invoice.purchase_order.value !== "nil" && (
+                          <span className={`text-xs ${getConfidenceColor(invoice.purchase_order.confidence)}`}>
+                            {(invoice.purchase_order.confidence * 100).toFixed(0)}%
                           </span>
-                        </div>
-                        <div>
-                          <div className="font-semibold text-gray-900 dark:text-white">{invoice.vendorName}</div>
-                          <div className="text-sm text-gray-600 dark:text-gray-400">{invoice.invoiceNumber}</div>
-                        </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                        <span>{invoice.date}</span>
-                        <span>•</span>
-                        <span>Due: {invoice.dueDate}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-6">
-                      <div className="text-right">
-                        <div className="font-semibold text-gray-900 dark:text-white">
-                          {invoice.currency} {invoice.amount.toLocaleString()}
-                        </div>
-                        <div className="flex items-center justify-end gap-2 mt-2">
-                          <span
-                            className={`text-xs font-medium px-2 py-1 rounded ${getConfidenceBgColor(
-                              invoice.confidenceScore,
-                            )}`}
-                          >
-                            {invoice.confidenceScore}% confidence
-                          </span>
-                          {invoice.status === "flagged" && (
-                            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
-                              <Flag className="h-3 w-3 mr-1" />
-                              Review
-                            </span>
-                          )}
-                          {invoice.status === "completed" && (
-                            <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              Done
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                    </td>
+                    <td className="p-3 text-center">
+                      {invoice.status === "flagged" ? (
+                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                          <Flag className="h-3 w-3 mr-1" />
+                          Review
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Complete
+                        </span>
+                      )}
+                    </td>
+                  </tr>
                 ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Upcoming Payments Section */}
-        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-card-foreground shadow-sm">
-          <div className="flex flex-col space-y-1.5 p-6 pb-4">
-            <h3 className="text-2xl font-semibold leading-none tracking-tight text-gray-900 dark:text-white">
-              Payment Schedule
-            </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Upcoming vendor payments organized by due date</p>
-          </div>
-          <div className="px-6 pb-6">
-            {isLoading ? (
-              <div className="space-y-4">
-                {[...Array(5)].map((_, index) => (
-                  <div key={index} className="h-20 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse" />
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {upcomingPayments
-                  .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
-                  .map((payment) => (
-                    <div
-                      key={payment.id}
-                      className="flex items-center justify-between p-4 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className="relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full bg-indigo-100 dark:bg-indigo-900">
-                            <span className="flex h-full w-full items-center justify-center text-indigo-600 dark:text-indigo-300 font-medium text-sm">
-                              {payment.vendorName.slice(0, 2).toUpperCase()}
-                            </span>
-                          </div>
-                          <div>
-                            <div className="font-semibold text-gray-900 dark:text-white">{payment.vendorName}</div>
-                            <div className="text-sm text-gray-600 dark:text-gray-400">{payment.invoiceNumber}</div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                          <CalendarDays className="h-3 w-3" />
-                          <span>Due: {new Date(payment.dueDate).toLocaleDateString()}</span>
-                          <span>•</span>
-                          <span className="font-medium">{payment.daysUntilDue} days</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-6">
-                        <div className="text-right">
-                          <div className="font-semibold text-gray-900 dark:text-white">
-                            {payment.currency}{" "}
-                            {payment.amount.toLocaleString("en-US", {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })}
-                          </div>
-                          <span
-                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium mt-2 ${getStatusColor(payment.status)}`}
-                          >
-                            {getStatusIcon(payment.status)}
-                            <span className="ml-1 capitalize">{payment.status.replace("-", " ")}</span>
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
 
-      {activeTab === "flagged" && filteredInvoices.length > 0 && (
+      {/* Detailed Field View for Flagged Items */}
+      {activeTab === "flagged" && flaggedInvoices.length > 0 && (
         <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-card-foreground shadow-sm">
           <div className="flex flex-col space-y-1.5 p-6 pb-4">
             <h3 className="text-2xl font-semibold leading-none tracking-tight text-gray-900 dark:text-white">
-              Flagged Item Details
+              Flagged Invoice Details
             </h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Extracted fields with low confidence scores</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Complete field extraction with confidence scores</p>
           </div>
           <div className="px-6 pb-6">
-            <div className="space-y-4">
-              {filteredInvoices.map((invoice) => (
-                <div
-                  key={invoice.id}
-                  className="border-t border-gray-200 dark:border-gray-600 pt-4 first:border-0 first:pt-0"
-                >
-                  <div className="font-semibold text-gray-900 dark:text-white mb-3">
-                    {invoice.vendorName} - {invoice.invoiceNumber}
+            <div className="space-y-6">
+              {flaggedInvoices.map((invoice) => (
+                <div key={invoice.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                  <div className="font-semibold text-lg text-gray-900 dark:text-white mb-4">
+                    {invoice.vendor_name.value} - {invoice.invoice_number.value}
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {invoice.extractedFields.map((field) => (
-                      <div
-                        key={field.name}
-                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
-                      >
-                        <span className="text-sm text-gray-600 dark:text-gray-300">{field.name}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-900 dark:text-white">{field.value}</span>
-                          <span className={`text-xs font-semibold ${getConfidenceColor(field.confidence)}`}>
-                            {field.confidence}%
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {Object.entries(invoice)
+                      .filter(([key]) => !['id', 'status'].includes(key))
+                      .map(([key, data]) => (
+                        <div key={key} className="flex flex-col p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                          <span className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase mb-1">
+                            {key.replace(/_/g, ' ')}
                           </span>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                              {typeof data === 'object' && 'value' in data ? (data.value === "nil" ? "N/A" : data.value) : data}
+                            </span>
+                            <span className={`text-xs font-bold px-2 py-1 rounded ${typeof data === 'object' && 'confidence' in data ? getConfidenceBgColor(data.confidence) : ''}`}>
+                              {typeof data === 'object' && 'confidence' in data ? (data.confidence * 100).toFixed(0) : 'N/A'}%
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 </div>
               ))}
