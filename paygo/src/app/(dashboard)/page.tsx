@@ -37,6 +37,7 @@ interface Invoice {
   purchase_order?: string
   gst_number?: string
   scraped_data: string
+  flagged?: boolean
 }
 
 interface ProcessedInvoice {
@@ -155,12 +156,21 @@ export default function InvoiceDashboard() {
           return scrapedData[field]?.confidence || 0.95
         }
 
-        // Determine status based on confidence scores
-        const avgConfidence = (
-          getConfidence('invoice_number') +
-          getConfidence('vendor_name') +
-          getConfidence('total_amount')
-        ) / 3
+        // Use the flagged field from database if available, otherwise calculate based on confidence
+        let status: "completed" | "flagged" = "completed"
+        
+        if (inv.flagged !== undefined) {
+          // Use the flagged field from the database
+          status = inv.flagged ? "flagged" : "completed"
+        } else {
+          // Fallback: Calculate based on average confidence
+          const avgConfidence = (
+            getConfidence('invoice_number') +
+            getConfidence('vendor_name') +
+            getConfidence('total_amount')
+          ) / 3
+          status = avgConfidence < 0.5 ? "flagged" : "completed"
+        }
 
         return {
           id: inv._id,
@@ -200,7 +210,7 @@ export default function InvoiceDashboard() {
             value: inv.tax_amount || 0, 
             confidence: getConfidence('tax_amount') 
           },
-          status: avgConfidence < 0.75 ? "flagged" : "completed"
+          status: status
         }
       })
 
@@ -469,7 +479,7 @@ export default function InvoiceDashboard() {
                 <div className="text-4xl font-bold text-white mb-2">{totalFlagged}</div>
                 <div className="flex items-center text-xs text-orange-100">
                   <AlertCircle className="h-3.5 w-3.5 mr-1.5" />
-                  Low confidence fields
+                  Requires attention
                 </div>
               </div>
             </div>

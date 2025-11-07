@@ -13,7 +13,7 @@ export const ProfileSchema = z.object({
 export const MailSchema = z.object({
   uuid: z.string().uuid().optional(),
   user_uuid: z.string().uuid('Valid profile UUID required'),
-  scraped_data: z.string().min(1, 'Scraped data required'),
+  scraped_data: z.string().min(1, 'Scraped data required').optional(),
   invoice_number: z.string().min(1, 'Invoice number required').optional(),
   vendor_name: z.string().min(1, 'Vendor name required').optional(),
   invoice_date: z.coerce.date().optional(),
@@ -22,6 +22,7 @@ export const MailSchema = z.object({
   due_date: z.coerce.date().optional(),
   gst_number: z.string().optional(),
   tax_amount: z.number().nonnegative().optional(),
+  flagged:z.boolean().default(false).optional(),
 });
 
 export type Profile = z.infer<typeof ProfileSchema>;

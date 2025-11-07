@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import {
   Upload,
   FileText,
@@ -14,6 +14,8 @@ import {
   X,
   File,
   ChevronDown,
+  Flag,
+  AlertTriangle,
 } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts"
 import * as XLSX from "xlsx"
@@ -27,19 +29,128 @@ interface ExtractedData {
   [key: string]: ExtractedDataItem;
 }
 
+interface FlagReason {
+  rule: string;
+  severity: 'high' | 'medium' | 'low';
+  message: string;
+}
+
+interface InvoiceFlags {
+  isFlagged: boolean;
+  reasons: FlagReason[];
+}
+
 export default function FileExtractor() {
   const [file, setFile] = useState<File | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [showRawJson, setShowRawJson] = useState(false)
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [activeView, setActiveView] = useState("both") // table, charts, both
+  const [activeView, setActiveView] = useState("both")
   const [showDownloadMenu, setShowDownloadMenu] = useState(false)
+  const [invoiceFlags, setInvoiceFlags] = useState<InvoiceFlags | null>(null)
+
+  /**
+   * Custom Flagging Rules for Invoices
+   */
+  const applyFlaggingRules = (data: ExtractedData): InvoiceFlags => {
+    const reasons: FlagReason[] = []
+
+    // Rule 1: Flag if average confidence score across all fields is below 50%
+    const confidences = Object.values(data).map(item => item.confidence)
+    const avgConfidence = confidences.reduce((a, b) => a + b, 0) / confidences.length
+    if (avgConfidence < 0.5) {
+      reasons.push({
+        rule: 'LOW_CONFIDENCE',
+        severity: 'high',
+        message: `Average confidence score (${(avgConfidence * 100).toFixed(1)}%) is below 50%. Manual verification recommended.`
+      })
+    }
+
+    // Rule 2: Flag if total amount exceeds $100,000
+    const totalAmount = parseFloat(data.total_amount?.value || '0')
+    if (totalAmount > 100000) {
+      reasons.push({
+        rule: 'HIGH_VALUE',
+        severity: 'medium',
+        message: `Invoice amount ($${totalAmount.toLocaleString()}) exceeds $100,000 threshold. Requires approval.`
+      })
+    }
+
+    // Rule 3: Flag if due date is within 7 days or overdue
+    if (data.due_date?.value && data.due_date.value !== 'nil') {
+      try {
+        const dueDate = new Date(data.due_date.value)
+        const today = new Date()
+        const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+        
+        if (daysUntilDue < 0) {
+          reasons.push({
+            rule: 'OVERDUE',
+            severity: 'high',
+            message: `Invoice is overdue by ${Math.abs(daysUntilDue)} day(s). Immediate action required.`
+          })
+        } else if (daysUntilDue <= 7) {
+          reasons.push({
+            rule: 'DUE_SOON',
+            severity: 'medium',
+            message: `Invoice due in ${daysUntilDue} day(s). Payment should be processed soon.`
+          })
+        }
+      } catch (e) {
+        console.error('Error parsing due date:', e)
+      }
+    }
+
+    // Rule 4: Flag if critical fields are missing
+    const criticalFields = ['invoice_number', 'vendor_name', 'total_amount', 'invoice_date']
+    const missingCriticalFields = criticalFields.filter(field => 
+      !data[field]?.value || data[field].value === 'nil'
+    )
+    if (missingCriticalFields.length > 0) {
+      reasons.push({
+        rule: 'MISSING_CRITICAL_DATA',
+        severity: 'high',
+        message: `Missing critical fields: ${missingCriticalFields.join(', ')}. Invoice cannot be processed automatically.`
+      })
+    }
+
+    // Rule 5: Flag if tax amount seems inconsistent
+    if (data.tax_amount?.value && totalAmount > 0) {
+      const taxAmount = parseFloat(data.tax_amount.value)
+      const taxPercentage = (taxAmount / totalAmount) * 100
+      if (taxPercentage < 5 || taxPercentage > 20) {
+        reasons.push({
+          rule: 'UNUSUAL_TAX',
+          severity: 'low',
+          message: `Tax amount (${taxPercentage.toFixed(1)}%) appears unusual. Expected range: 5-20%.`
+        })
+      }
+    }
+
+    // Rule 6: Flag potential test/duplicate invoices
+    if (data.invoice_number?.value && data.invoice_number.value.toLowerCase().includes('test')) {
+      reasons.push({
+        rule: 'POTENTIAL_TEST_INVOICE',
+        severity: 'low',
+        message: 'Invoice number contains "test" - verify this is not a test or duplicate invoice.'
+      })
+    }
+
+    return {
+      isFlagged: reasons.length > 0,
+      reasons: reasons.sort((a, b) => {
+        const severityOrder = { high: 0, medium: 1, low: 2 }
+        return severityOrder[a.severity] - severityOrder[b.severity]
+      })
+    }
+  }
 
   const processInvoice = async (selectedFile: File) => {
     setIsProcessing(true)
     setError(null)
     setExtractedData(null)
+    setInvoiceFlags(null)
 
     try {
       const formData = new FormData()
@@ -55,12 +166,15 @@ export default function FileExtractor() {
       }
 
       const result = await response.json()
-      // Extract the 'data' property from the response
       const data = result.data || result
       setExtractedData(data)
 
-      // Save to database after successful extraction
-      await saveToDatabase(data)
+      // Apply flagging rules
+      const flags = applyFlaggingRules(data)
+      setInvoiceFlags(flags)
+
+      // Save to database with flagging information
+      await saveToDatabase(data, flags)
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred while processing the invoice")
       console.error("Error:", err)
@@ -69,9 +183,8 @@ export default function FileExtractor() {
     }
   }
 
-  const saveToDatabase = async (data: ExtractedData) => {
+  const saveToDatabase = async (data: ExtractedData, flags: InvoiceFlags) => {
     try {
-      // Get user_uuid from localStorage
       const userUuid = localStorage.getItem('user_uuid')
       
       if (!userUuid) {
@@ -79,10 +192,10 @@ export default function FileExtractor() {
         return
       }
 
-      // Convert extracted data to the mail schema format
+      // Convert extracted data to the mail schema format with flagging
       const mailData = {
         user_uuid: userUuid,
-        scraped_data: JSON.stringify(data), // Store the entire extracted data as JSON string
+        scraped_data: JSON.stringify(data),
         invoice_number: data.invoice_number?.value || "N/A",
         vendor_name: data.vendor_name?.value || "N/A",
         invoice_date: data.invoice_date?.value || new Date().toISOString(),
@@ -91,6 +204,7 @@ export default function FileExtractor() {
         due_date: data.due_date?.value === "nil" ? undefined : data.due_date?.value,
         gst_number: data.gst_number?.value === "nil" ? undefined : data.gst_number?.value,
         tax_amount: data.tax_amount?.value ? parseFloat(data.tax_amount.value) : undefined,
+        flagged: flags.isFlagged,
       }
 
       console.log('[FileExtractor] - Sending mail data to database:', mailData)
@@ -122,7 +236,6 @@ export default function FileExtractor() {
     if (selectedFile) {
       setFile(selectedFile)
       setError(null)
-      // Automatically process the file
       processInvoice(selectedFile)
     }
   }
@@ -133,7 +246,6 @@ export default function FileExtractor() {
     if (droppedFile) {
       setFile(droppedFile)
       setError(null)
-      // Automatically process the file
       processInvoice(droppedFile)
     }
   }
@@ -160,7 +272,14 @@ export default function FileExtractor() {
     return "#ef4444"
   }
 
-  // Download as JSON
+  const getSeverityColor = (severity: 'high' | 'medium' | 'low') => {
+    switch (severity) {
+      case 'high': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+      case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+      case 'low': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+    }
+  }
+
   const downloadJson = () => {
     if (!extractedData) return
     const dataStr = JSON.stringify(extractedData, null, 2)
@@ -174,7 +293,6 @@ export default function FileExtractor() {
     setShowDownloadMenu(false)
   }
 
-  // Download as TXT
   const downloadTxt = () => {
     if (!extractedData) return
     
@@ -188,6 +306,15 @@ export default function FileExtractor() {
       txtContent += `  Confidence: ${(data.confidence * 100).toFixed(1)}%\n\n`
     })
     
+    if (invoiceFlags && invoiceFlags.isFlagged) {
+      txtContent += "\n" + "=".repeat(50) + "\n"
+      txtContent += "FLAGGED ISSUES\n"
+      txtContent += "=".repeat(50) + "\n\n"
+      invoiceFlags.reasons.forEach((reason, idx) => {
+        txtContent += `${idx + 1}. [${reason.severity.toUpperCase()}] ${reason.message}\n\n`
+      })
+    }
+    
     const dataBlob = new Blob([txtContent], { type: "text/plain" })
     const url = URL.createObjectURL(dataBlob)
     const link = document.createElement("a")
@@ -198,7 +325,6 @@ export default function FileExtractor() {
     setShowDownloadMenu(false)
   }
 
-  // Download as CSV
   const downloadCsv = () => {
     if (!extractedData) return
     
@@ -210,7 +336,6 @@ export default function FileExtractor() {
       const confidence = (data.confidence * 100).toFixed(1)
       const status = data.confidence >= 0.9 ? "High" : data.confidence >= 0.75 ? "Medium" : "Low"
       
-      // Escape values that contain commas or quotes
       const escapedValue = value.includes(',') || value.includes('"') ? `"${value.replace(/"/g, '""')}"` : value
       
       csvContent += `${fieldName},${escapedValue},${confidence},${status}\n`
@@ -226,11 +351,9 @@ export default function FileExtractor() {
     setShowDownloadMenu(false)
   }
 
-  // Download as XLSX
   const downloadXlsx = () => {
     if (!extractedData) return
     
-    // Prepare data for Excel
     const excelData = Object.entries(extractedData).map(([key, data]) => ({
       "Field Name": key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
       "Extracted Value": data.value === "nil" ? "Not Available" : data.value,
@@ -238,20 +361,17 @@ export default function FileExtractor() {
       "Status": data.confidence >= 0.9 ? "High" : data.confidence >= 0.75 ? "Medium" : "Low"
     }))
     
-    // Create a new workbook and worksheet
     const worksheet = XLSX.utils.json_to_sheet(excelData)
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, "Extracted Data")
     
-    // Set column widths
     worksheet['!cols'] = [
-      { wch: 25 },  // Field Name
-      { wch: 30 },  // Extracted Value
-      { wch: 20 },  // Confidence Score
-      { wch: 15 }   // Status
+      { wch: 25 },
+      { wch: 30 },
+      { wch: 20 },
+      { wch: 15 }
     ]
     
-    // Generate and download the file
     XLSX.writeFile(workbook, "extracted-invoice-data.xlsx")
     setShowDownloadMenu(false)
   }
@@ -260,9 +380,9 @@ export default function FileExtractor() {
     setFile(null)
     setExtractedData(null)
     setError(null)
+    setInvoiceFlags(null)
   }
 
-  // Prepare chart data
   const chartData = extractedData
     ? Object.entries(extractedData).map(([key, data]) => ({
         field: key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
@@ -362,6 +482,43 @@ export default function FileExtractor() {
         </div>
       )}
 
+      {/* Flagging Alert */}
+      {invoiceFlags && invoiceFlags.isFlagged && (
+        <div className="max-w-7xl mx-auto mb-8">
+          <div className="rounded-lg border-2 border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20 p-6">
+            <div className="flex items-start">
+              <Flag className="h-6 w-6 text-orange-600 dark:text-orange-400 mr-3 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-orange-900 dark:text-orange-200 mb-3">
+                  Invoice Flagged for Review
+                </h3>
+                <div className="space-y-3">
+                  {invoiceFlags.reasons.map((reason, idx) => (
+                    <div key={idx} className="flex items-start bg-white dark:bg-gray-800 rounded-lg p-3">
+                      <AlertTriangle className={`h-5 w-5 mr-3 mt-0.5 flex-shrink-0 ${
+                        reason.severity === 'high' ? 'text-red-600' : 
+                        reason.severity === 'medium' ? 'text-yellow-600' : 'text-blue-600'
+                      }`} />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">
+                            {reason.rule.replace(/_/g, ' ')}
+                          </span>
+                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${getSeverityColor(reason.severity)}`}>
+                            {reason.severity.toUpperCase()}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">{reason.message}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Results Section */}
       {extractedData && (
         <>
@@ -434,7 +591,6 @@ export default function FileExtractor() {
                 {showRawJson ? "Hide" : "Show"} JSON
               </button>
               
-              {/* Download Dropdown */}
               <div className="relative">
                 <button
                   onClick={() => setShowDownloadMenu(!showDownloadMenu)}
@@ -644,7 +800,6 @@ export default function FileExtractor() {
         </div>
       )}
 
-      {/* Click outside to close download menu */}
       {showDownloadMenu && (
         <div
           className="fixed inset-0 z-0"
