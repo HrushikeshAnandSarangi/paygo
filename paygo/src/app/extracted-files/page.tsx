@@ -42,7 +42,7 @@ export default function FileExtractor() {
       const formData = new FormData()
       formData.append("file", selectedFile)
 
-      const response = await fetch("http://localhost:8000/process-invoice", {
+      const response = await fetch("https://paygoapi-crc3gkhjd6bqchhm.centralindia-01.azurewebsites.net/process-invoice", {
         method: "POST",
         body: formData,
       })

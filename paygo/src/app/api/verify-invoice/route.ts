@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // Your FastAPI backend URL
-const INVOICE_API_URL = process.env.INVOICE_API_URL || 'http://localhost:8000';
+const INVOICE_API_URL = 'https://paygoapi-crc3gkhjd6bqchhm.centralindia-01.azurewebsites.net/';
 
 export async function POST(request: NextRequest) {
   try {
