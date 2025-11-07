@@ -76,9 +76,6 @@ const EmailsContent: React.FC = () => {
         setIsAuthenticated(data.isAuthenticated);
         if (data.isAuthenticated && data.userEmail) {
           setUserEmail(data.userEmail);
-          if (data.profile_uuid) {
-            localStorage.setItem('user_uuid', data.profile_uuid);
-          }
           console.log('[EmailsPage] User is authenticated, fetching emails...');
           fetchEmails();
         } else {
